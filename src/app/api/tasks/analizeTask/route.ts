@@ -3,6 +3,7 @@ import { streamObject, generateText, tool } from "ai";
 import { z } from "zod";
 import dotenv from "dotenv";
 import { DataMeeting } from "@/utils/interfaces";
+import { addMeetingTool } from "@/utils/tools/addMeetingTool";
 
 dotenv.config();
 const apiKey = process.env.OPENAI_API_KEY;
@@ -12,24 +13,7 @@ export async function POST(request: Request) {
   const { task }: { task: string } = await request.json();
   const today = new Date();
 
-  const timeSchemaSince = z
-    .string()
-    .regex(/^(2[0-3]|[01]?[0-9]):([0-5][0-9]|\d{2})$/, {
-      message: "Formato de hora inválido. Debe ser HH:mm (24 horas).",
-    })
-    .describe(`Meeting start time. Response in the format HH:mm`);
-
-  const timeSchemaSinceUntil = z
-    .string()
-    .regex(/^(2[0-3]|[01]?[0-9]):([0-5][0-9]|\d{2})$/, {
-      message: "Formato de hora inválido. Debe ser HH:mm (24 horas).",
-    })
-    .describe(`Meeting end time. Response in the format HH:mm`);
-
-  const dateSchema = z
-    .string()
-    .describe(`Today is ${today}. Meeting date. Must be YYYY-MM-DD.`);
-  
+  /*
   const { partialObjectStream } = await streamObject({
     model: openai("gpt-4o"),
 
@@ -65,8 +49,7 @@ export async function POST(request: Request) {
         ),
     }),
   });
-
-  //const { text: answer } = await generateText({
+*/
   const { roundtrips } = await generateText({
     model: openai("gpt-4o"),
 
@@ -83,74 +66,12 @@ export async function POST(request: Request) {
     prompt: `The task to do now is ${task}`,
 
     tools: {
-      addMeeting: tool({
-        description:
-          "Save meeting. Use this when the user wants to schedule a meeting",
-
-        parameters: z.object({
-          dataMeeting: z.object({
-            message: z
-              .string()
-              .describe("Report if it is correct or report the error."),
-
-            what: z
-              .array(z.string())
-              .describe(
-                "What you're going to do. It should be Schedule Meeting, Delete Meeting, Move Meeting, Add Attendees, Remove Attendees, Add Topics, Delete Topics, or any combination between them."
-              ),
-            who: z.array(z.string()).describe("Meeting participants"),
-            when: z
-              .string()
-              .regex(/^\d{4}-\d{2}-\d{2}$/, {
-                message: "Meeting date must be in the format YYYY-MM-DD.",
-              })
-              .describe(`Today is ${today}. Meeting date. Must be YYYY-MM-DD.`),
-            since: z
-              .string()
-              .regex(/^(2[0-3]|[01]?[0-9]):([0-5][0-9])$/, {
-                message:
-                  "Meeting start time must be in the format HH:mm (24-hour).",
-              })
-              .describe("Meeting start time. Response in the format HH:mm."),
-            until: z
-              .string()
-              .regex(/^(2[0-3]|[01]?[0-9]):([0-5][0-9])$/, {
-                message:
-                  "Meeting end time must be in the format HH:mm (24-hour).",
-              })
-              .describe("Meeting end time. Response in the format HH:mm."),
-            about: z
-              .array(z.string())
-              .describe("Topics to be discussed during the meeting."),
-            duration: z
-              .string()
-              .regex(/^([0-1]?[0-9]|2[0-3]):([0-5][0-9])$/, {
-                message: "Duration must be in the format HH:mm.",
-              })
-              .describe(
-                "Duration of the meeting. Must be in HH:mm. It is not the same as Meeting Time. Default take an hour."
-              ),
-          }),
-        }),
-        execute: async ({ dataMeeting }: { dataMeeting: DataMeeting }) => {
-          console.log("Estoy en generate");
-          try {
-            await new Promise((resolve) => setTimeout(resolve, 1000));
-            return dataMeeting;
-          } catch (error) {
-            console.error("Error en generacion", error);
-            throw error;
-          }
-        },
-      }),
+      addMeeting: addMeetingTool,
     },
   });
 
   const allToolCalls = roundtrips.flatMap((roundtrip) => roundtrip.toolCalls);
-  const temp = allToolCalls[0].args.dataMeeting
-
-  //console.log("ALL TO CALLS", allToolCalls[0].args);
-  //console.log("ALL TO CALLS - dataMeting", temp);
+  const temp = allToolCalls[0].args.dataMeeting;
 
   const array: any[] = [];
   array.push(temp);
@@ -161,7 +82,7 @@ export async function POST(request: Request) {
   }
   const array = partialObjects.slice(-1);
   */
-  
+
   console.log("Resultado final?", array[0]);
 
   const retorno = new Response(JSON.stringify(array), {
