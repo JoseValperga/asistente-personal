@@ -1,31 +1,47 @@
-import { Sequelize, Model, DataTypes, Optional } from "sequelize";
 import pg from "pg";
+import { Sequelize } from "sequelize";
 import dotenv from "dotenv";
-import MeetingModel, { MeetingAttributes, MeetingInstance } from "./models/meeting"; // Ajusta las importaciones según la estructura de tu modelo
+import MeetingModel from "./models/meeting";
 
 dotenv.config();
 
-const { DB_USER, DB_PASSWORD, DB_HOST, DB_NAME } = process.env as unknown as {
+interface EnvVariables {
   DB_USER: string;
   DB_PASSWORD: string;
   DB_HOST: string;
   DB_NAME: string;
+}
+
+const getEnvVariables = (): EnvVariables => {
+  const { DB_USER, DB_PASSWORD, DB_HOST, DB_NAME } = process.env;
+
+  if (!DB_USER || !DB_PASSWORD || !DB_HOST || !DB_NAME) {
+    throw new Error("Missing required environment variables");
+  }
+
+  return {
+    DB_USER,
+    DB_PASSWORD,
+    DB_HOST,
+    DB_NAME,
+  };
 };
 
-const sequelize = new Sequelize(
-  `postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}/${DB_NAME}`,
-  {
-    logging: false,
-    native: false,
-    dialectModule: pg,
-  }
-);
+const env = getEnvVariables();
+
+const { DB_USER, DB_PASSWORD, DB_HOST, DB_NAME } = env;
+
+const temp: string = `postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}/${DB_NAME}`;
+
+const sequelize = new Sequelize(temp, {
+  logging: false,
+  native: false,
+  dialectModule: pg,
+});
 
 MeetingModel(sequelize);
 
-const {
-  models: { Meeting },
-} = sequelize;
+const { Meeting } = sequelize.models;
 
 const connectDB = async () => {
   try {

@@ -11,7 +11,7 @@ interface MeetingData {
 }
 
 export const saveMeeting = async (data: MeetingData) => {
-  console.log("data en actions: ", data);
+  //console.log("data en actions: ", data);
   const { who, when, since, until, about, duration } = data;
 
   try {

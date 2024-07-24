@@ -14,7 +14,7 @@ interface MeetingData {
 export async function POST(request: Request): Promise<Response> {
   "use server";
   const data: MeetingData = await request.json();
-  console.log("En tasks/route", data);
+  //console.log("En tasks/route", data);
 
   try {
     const newData = await saveMeeting(data);

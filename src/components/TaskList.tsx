@@ -1,15 +1,5 @@
 import TaskItem from "./TaskItem";
-
-interface Task {
-  message: string;
-  what: string[];
-  who: string[];
-  when: string;
-  since: string;
-  until: string;
-  about: string[];
-  duration: string;
-}
+import { Task } from "@/utils/interfaces";
 
 interface TaskListProps {
   tasks: Task[];
