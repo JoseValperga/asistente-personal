@@ -12,98 +12,85 @@ const language = process.env.LANGUAGE;
 export async function POST(request: Request) {
   const { task }: { task: string } = await request.json();
   const today = new Date();
+  console.log("TODAY", today);
 
-  /*
-  const { partialObjectStream } = await streamObject({
-    model: openai("gpt-4o"),
+  try {
+    const { roundtrips, text } = await generateText({
+      model: openai("gpt-4o"),
 
-    system: `All answers must be in ${language}. You're a productivity assistant and manage a daily meeting schedule. 
-    You should keep in mind that you manage dates, times and duration of meetings. 
-    - You cannot schedule meetings on dates and times before ${today} except when you move the meeting. 
-    - If the date is not specified, take by default ${today}. 
-    - You can schedule meetings, delete meetings, move meetings, modify meeting attendees, 
-    modify the duration of meetings and modify the topics to be discussed during meetings.`,
+      maxToolRoundtrips: 10,
 
-    prompt: `The task to do now is ${task}`,
-
-    schema: z.object({
-      message: z
-        .string()
-        .describe("Report if it is correct or report the error."),
-      what: z
-        .array(z.string())
-        .describe(
-          "What you're going to do. It should be Schedule Meeting, Delete Meeting, Move Meeting, Add Attendees, Remove Attendees, Add Topics, Delete Topics, or any combination between them."
-        ),
-      who: z.array(z.string()).describe("Meeting participants"),
-      when: dateSchema,
-      since: timeSchemaSince,
-      until: timeSchemaSinceUntil,
-      about: z
-        .array(z.string())
-        .describe("Topics to be discussed during the meeting."),
-      duration: z
-        .number()
-        .describe(
-          "Duration of the meeting. Must be in HH:mm. It is not the same as Meeting Time. Default take an hour."
-        ),
-    }),
-  });
-*/
-  const { roundtrips } = await generateText({
-    model: openai("gpt-4o"),
-
-    maxToolRoundtrips: 10,
-
-    system: `You're a productivity assistant and manage a daily meeting schedule.
+      system: `You're a productivity assistant and manage a daily meeting schedule.
       You should keep in mind that you manage dates, times and duration of meetings. All answers must be in ${language}.
-      - You cannot schedule meetings on dates and times before ${today} except when you move the meeting. 
+      - You cannot schedule meetings on dates and times before ${today}. 
       - If the date is not specified, take by default ${today}. 
       - You can schedule meetings, delete meetings, move meetings, modify meeting attendees, 
       modify the duration of meetings, modify the topics to be discussed during meetings.
-      If the user requests to schedule a meeting, call \`add_Meeting\` to save it.`,
+      - Before scheduling a meeting, check if the time slot is available.
+      - If the time slot is not available, respond with a message indicating the conflict but do not suggest an alternative time.
+      - Only use \`addMeeting\` to save meetings and not for other tasks.`,
 
-    prompt: `The task to do now is ${task}`,
+      prompt: `The task to do now is ${task}`,
 
-    tools: {
-      addMeeting: addMeetingTool,
-    },
-  });
+      tools: {
+        addMeeting: addMeetingTool,
+      },
+    });
 
-  const allToolCalls = roundtrips.flatMap((roundtrip) => roundtrip.toolCalls);
-  const temp = allToolCalls[0].args.dataMeeting;
+    const allToolCalls = roundtrips.flatMap((roundtrip) => roundtrip.toolCalls);
 
-  const array: any[] = [];
-  array.push(temp);
-  /*
-  const partialObjects: any[] = [];
-  for await (const partialObject of partialObjectStream) {
-    partialObjects.push(partialObject);
-  }
-  const array = partialObjects.slice(-1);
-  */
+    console.log("Mirando args flatMap", allToolCalls);
+    console.log("TEXT", text);
+    console.log("Roundtrip", roundtrips);
+    console.log(
+      "Roundtrip de length - toolResult",
+      roundtrips[roundtrips.length - 1].toolResults
+    );
+    console.log(
+      "Roundtrip de cero - result",
+      roundtrips[0].toolResults[0].result.success
+    );
+    const array: any[] = [];
 
-  console.log("Resultado final?", array[0]);
-
-  const retorno = new Response(JSON.stringify(array), {
-    status: 200,
-    headers: {
-      "Content-Type": "application/json",
-    },
-  });
-
-  const response = await fetch(
-    `${process.env.NEXT_PUBLIC_BASE_URL}/api/tasks`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(array[0]),
+    //if (!allToolCalls[0]) {
+    if (!roundtrips[0].toolResults[0].result.success) {
+      array.push({
+        message: text,
+        what: [""],
+        who: [""],
+        when: "",
+        since: "",
+        until: "",
+        about: [""],
+        duration: "",
+      });
+    } else {
+      const temp = allToolCalls[0].args.dataMeeting;
+      array.push(temp);
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_BASE_URL}/api/tasks`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(array[0]),
+        }
+      );
+      const data = await response.json();
     }
-  );
 
-  const data = await response.json();
+    console.log("Resultado final", array[0]);
+    const retorno = new Response(JSON.stringify(array), {
+      status: 200,
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
 
-  return retorno;
+    return retorno;
+  } catch (error) {
+    console.error("Error en POST", error);
+    return new Response("Internal Server Error", { status: 500 });
+  }
 }
 
 /*
